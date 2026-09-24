@@ -1,0 +1,5 @@
+FROM python:3.11-slim
+WORKDIR /work
+RUN pip install --no-cache-dir "vla-eval==0.7.0" 2>/dev/null || pip install --no-cache-dir vla-eval
+RUN apt-get update && apt-get install -y --no-install-recommends curl docker.io && rm -rf /var/lib/apt/lists/*
+CMD ["bash"]

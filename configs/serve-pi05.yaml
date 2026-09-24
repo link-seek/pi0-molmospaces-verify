@@ -1,0 +1,16 @@
+# pi0 serve 配置（LeRobot 桥接），用于 MolmoSpaces smoke
+# 上游参考：configs/model_servers/lerobot/pi05_libero.yaml
+# 注意：image_keys/state_key 是 LIBERO 口径，跑 MolmoSpaces 前必须按 Franka FR3 核对映射，
+# 动作侧注意 MolmoSpaces 要求 joint_pos absolute + clamp，pi0 默认 EE  Michel，请先 smoke 再调映射。
+
+extends: _base_placeholder
+args:
+  policy_type: pi05
+  checkpoint: lerobot/pi05_libero_finetuned
+  device: cuda
+  port: 8000
+  chunk_size: 10
+  state_key: observation.state
+  image_keys:
+    agentview: observation.images.image
+    wrist: observation.images.image2

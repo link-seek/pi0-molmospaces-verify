@@ -1,0 +1,10 @@
+# LIBERO 对照 smoke，上游 configs/benchmarks/libero/smoke_test.yaml 的本地镜像引用
+# 用于证明 serve 链路本身正常，再对比 MolmoSpaces 是否额外挂。
+
+server:
+  url: "ws://localhost:8000"
+
+docker:
+  image: ghcr.io/allenai/vla-evaluation-harness/libero:latest
+
+output_dir: "./results"

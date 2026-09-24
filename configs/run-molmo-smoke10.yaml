@@ -1,0 +1,23 @@
+# MolmoSpaces smoke（10ep 抽查），全量是 200ep
+# 上游参考：configs/benchmarks/molmospaces/pick_and_place.yaml
+# smoke 策略：先跑通 10ep，确认 joint_pos absolute / clamp / 15Hz / horizon 600 四项无误，再开全量。
+
+server:
+  url: "ws://localhost:8000"
+  timeout: 600.0
+
+docker:
+  image: ghcr.io/allenai/vla-evaluation-harness/molmospaces:latest
+
+output_dir: "./results"
+
+benchmarks:
+  - benchmark: "vla_eval.benchmarks.molmospaces.benchmark:MolmoSpacesBenchmark"
+    episodes_per_task: 1
+    max_steps: 600
+    params:
+      benchmark_dir: "/assets/benchmarks/molmospaces-bench-v2/procthor-objaverse/FrankaPickandPlaceHardBench/FrankaPickandPlaceHardBench_20260212_200ep_json_benchmark"
+      eval_config_cls: "molmo_spaces.evaluation.configs.evaluation_configs:DummyPickPlaceEvalConfig"
+      task_horizon: 600
+      send_wrist_image: true
+      send_state: true
