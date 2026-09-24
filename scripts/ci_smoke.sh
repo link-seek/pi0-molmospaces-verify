@@ -10,11 +10,13 @@ LIBERO_IMAGE="ghcr.io/allenai/vla-evaluation-harness/libero:latest"
 VERIFY_IMAGE="pi0-molmo-verify:0.1"
 mkdir -p results
 
-echo "[1/5] harness 上游 clone ($HARNESS_REF)"
-if [ ! -f harness/pyproject.toml ]; then
-  rm -rf harness
-  git clone --depth 1 --branch "$HARNESS_REF" https://github.com/allenai/vla-evaluation-harness.git harness
-fi
+echo "[1/5] harness 上游 clone ($HARNESS_REF, 带重试)"
+rm -rf harness
+for i in 1 2 3; do
+  if git clone --depth 1 --branch "$HARNESS_REF" https://github.com/allenai/vla-evaluation-harness.git harness; then break; fi
+  echo "clone 失败, 重试 $i..."; rm -rf harness; sleep 15
+  [ "$i" = "3" ] && exit 128
+done
 
 echo "[2/5] benchmark 镜像 (libero 拉取, molmo 本地构建, 上游未发布)"
 docker pull "$LIBERO_IMAGE"
