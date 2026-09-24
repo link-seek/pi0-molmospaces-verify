@@ -9,6 +9,9 @@ MOLMO_IMAGE="ghcr.io/allenai/vla-evaluation-harness/molmospaces:latest"
 LIBERO_IMAGE="ghcr.io/allenai/vla-evaluation-harness/libero:latest"
 VERIFY_IMAGE="pi0-molmo-verify:0.1"
 mkdir -p results
+echo "[0/5] workspace 属主修复 (容器以 root 写文件, 改回 runner 1001)"
+docker run --rm -v "$WORK":/w python:3.12-slim chown -R 1001:1001 /w 2>/dev/null || \
+  sudo chown -R "$(id -u):$(id -g)" "$WORK" 2>/dev/null || true
 
 echo "[1/5] harness 上游 clone ($HARNESS_REF, 带重试)"
 rm -rf harness
