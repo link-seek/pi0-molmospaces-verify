@@ -33,14 +33,14 @@ docker rm -f pi0-serve 2>/dev/null || true
 docker run -d --name pi0-serve --gpus '"device=0"' --network host \
   -v "$WORK":/work -w /work/harness \
   -e CUDA_VISIBLE_DEVICES=0 -e COMPILE_MODEL=false \
+  -e HF_ENDPOINT=https://hf-mirror.com -e HF_HUB_VERBOSITY=warning \
   "$VERIFY_IMAGE" \
   vla-eval serve -c configs/model_servers/lerobot/pi05_libero.yaml
 echo "等待 serve 端口 8000 (checkpoint 下载可能很久, 最多 20min)"
-sleep 15
-if [ "$(docker inspect -f '{{.State.Running}}' pi0-serve 2>/dev/null)" != "true" ]; then
-  echo "serve 容器秒退, 日志:"; docker logs pi0-serve 2>&1 | tail -n 30; docker rm -f pi0-serve; exit 1
-fi
 for i in $(seq 1 120); do
+  if [ "$(docker inspect -f '{{.State.Running}}' pi0-serve 2>/dev/null)" != "true" ]; then
+    echo "serve 容器退出了, 日志:"; docker logs pi0-serve 2>&1 | tail -n 30; docker rm -f pi0-serve; exit 1
+  fi
   if (echo > /dev/tcp/127.0.0.1/8000) 2>/dev/null; then echo "serve UP"; break; fi
   if [ "$i" = "120" ]; then echo "serve 起不来, 看日志:"; docker logs pi0-serve 2>&1 | tail -n 30; docker rm -f pi0-serve; exit 1; fi
   sleep 10
