@@ -1,0 +1,8 @@
+name: runner-probe
+on: workflow_dispatch
+jobs:
+  probe:
+    runs-on: [self-hosted, Linux, X64, V100-pi0]
+    timeout-minutes: 5
+    steps:
+      - run: echo "runner alive: $(hostname) $(nvidia-smi -L | head -n 2)"
