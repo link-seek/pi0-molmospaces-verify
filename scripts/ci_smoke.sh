@@ -31,10 +31,10 @@ docker build -f docker/Dockerfile.verify -t "$VERIFY_IMAGE" .
 echo "[4/5] 启动 pi0 serve (GPU0, 后台)"
 docker rm -f pi0-serve 2>/dev/null || true
 docker run -d --name pi0-serve --gpus '"device=0"' --network host \
-  -v "$WORK":/work -w /work \
+  -v "$WORK":/work -w /work/harness \
   -e CUDA_VISIBLE_DEVICES=0 -e COMPILE_MODEL=false \
   "$VERIFY_IMAGE" \
-  vla-eval serve -c /work/harness/configs/model_servers/lerobot/pi05_libero.yaml
+  vla-eval serve -c configs/model_servers/lerobot/pi05_libero.yaml
 echo "等待 serve 端口 8000 (checkpoint 下载可能很久, 最多 20min)"
 sleep 15
 if [ "$(docker inspect -f '{{.State.Running}}' pi0-serve 2>/dev/null)" != "true" ]; then
