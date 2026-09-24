@@ -51,9 +51,8 @@ jobs:
 
   smoke:
     needs: start-ecs
-    # 复用组织级 V100 池；串行靠 concurrency 保证。
-    # 后续给 runner 加上 V100-pi0 标签后，再把下一行换成 [self-hosted, Linux, X64, V100-pi0]
-    runs-on: [self-hosted, Linux, X64, V100]
+    # 组织级 runner ecs-0002-org，标签含 V100-pi0，与 so101 彻底隔离
+    runs-on: [self-hosted, Linux, X64, V100-pi0]
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
