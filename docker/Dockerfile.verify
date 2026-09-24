@@ -1,8 +1,12 @@
 FROM python:3.11-slim
 WORKDIR /work
+# 先装系统依赖: git/curl/docker 客户端 + 编译依赖(evdev 等要 gcc/Python.h)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git curl docker.io gcc python3-dev \
+    && rm -rf /var/lib/apt/lists/*
+RUN pip install --no-cache-dir --upgrade pip
 # torch cu121 (V100 sm_70 可用) + lerobot(serve policy) + vla-eval(orchestrator)
 RUN pip install --no-cache-dir torch==2.3.1 --index-url https://download.pytorch.org/whl/cu121
-RUN pip install --no-cache-dir "lerobot==0.6.0" 2>/dev/null || pip install --no-cache-dir lerobot
-RUN pip install --no-cache-dir "vla-eval==0.7.0" 2>/dev/null || pip install --no-cache-dir vla-eval
-RUN apt-get update && apt-get install -y --no-install-recommends git curl docker.io && rm -rf /var/lib/apt/lists/*
+RUN pip install --no-cache-dir "lerobot==0.6.0"
+RUN pip install --no-cache-dir "vla-eval==0.7.0"
 CMD ["bash"]
