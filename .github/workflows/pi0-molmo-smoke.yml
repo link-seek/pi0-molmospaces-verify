@@ -14,7 +14,7 @@ on:
 
 # 与 so101 共用同一台双32G V100，按官方要求串行，避免抢卡
 concurrency:
-  group: gpu-ecs-singleton
+  group: gpu-ecs-pi0-smoke
   cancel-in-progress: false
 
 permissions:
