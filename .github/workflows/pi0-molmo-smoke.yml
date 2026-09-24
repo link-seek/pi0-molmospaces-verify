@@ -58,6 +58,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Run smoke via Docker (host orchestration)
         run: |
+          mkdir -p results
           chmod +x scripts/ci_smoke.sh
           bash scripts/ci_smoke.sh 2>&1 | tee results/ci.log; CODE=${PIPESTATUS[0]}
           echo "smoke_exit=$CODE"
