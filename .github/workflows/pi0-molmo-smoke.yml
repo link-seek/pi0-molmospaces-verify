@@ -56,24 +56,10 @@ jobs:
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
-      - name: Pull benchmark images (Docker, required)
+      - name: Run smoke via Docker (host orchestration)
         run: |
-          docker pull ${{ env.MOLMO_IMAGE }}
-          docker pull ${{ env.LIBERO_IMAGE }}
-          docker images | grep vla-evaluation-harness
-      - name: Build verify image
-        run: docker build -f docker/Dockerfile.verify -t pi0-molmo-verify:0.1 .
-      - name: Run smoke via Docker
-        run: |
-          set +e
-          mkdir -p results
-          chmod +x scripts/run_smoke.sh
-          docker run --rm --gpus all --network host \
-            -v $PWD:/work -w /work \
-            -e CUDA_VISIBLE_DEVICES=0 \
-            -e COMPILE_MODEL=false \
-            pi0-molmo-verify:0.1 bash scripts/run_smoke.sh 2>&1 | tee results/smoke.log; CODE=$?
-          ls -lh results/ || true
+          chmod +x scripts/ci_smoke.sh
+          bash scripts/ci_smoke.sh 2>&1 | tee results/ci.log; CODE=${PIPESTATUS[0]}
           echo "smoke_exit=$CODE"
           exit $CODE
       - name: Upload artifacts

@@ -1,5 +1,8 @@
 FROM python:3.11-slim
 WORKDIR /work
+# torch cu121 (V100 sm_70 可用) + lerobot(serve policy) + vla-eval(orchestrator)
+RUN pip install --no-cache-dir torch==2.3.1 --index-url https://download.pytorch.org/whl/cu121
+RUN pip install --no-cache-dir "lerobot==0.6.0" 2>/dev/null || pip install --no-cache-dir lerobot
 RUN pip install --no-cache-dir "vla-eval==0.7.0" 2>/dev/null || pip install --no-cache-dir vla-eval
-RUN apt-get update && apt-get install -y --no-install-recommends curl docker.io && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends git curl docker.io && rm -rf /var/lib/apt/lists/*
 CMD ["bash"]
