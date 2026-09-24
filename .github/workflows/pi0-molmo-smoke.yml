@@ -1,0 +1,113 @@
+name: pi0 MolmoSpaces Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      smoke_episodes:
+        description: "Smoke episodes (10 for quick check, 200 for full)"
+        required: false
+        default: "10"
+      checkpoint:
+        description: "LeRobot checkpoint"
+        required: false
+        default: "lerobot/pi05_libero_finetuned"
+
+# 与 so101 共用同一台双32G V100，按官方要求串行，避免抢卡
+concurrency:
+  group: gpu-ecs-singleton
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  packages: read
+
+env:
+  ECS_SERVER_ID: 7f39cb83-1a5c-4792-b65e-e578d7ddb88d
+  ECS_REGION: cn-north-4
+  OBS_BUCKET: so101-sim-pipeline
+  MOLMO_IMAGE: ghcr.io/allenai/vla-evaluation-harness/molmospaces:latest
+  LIBERO_IMAGE: ghcr.io/allenai/vla-evaluation-harness/libero:latest
+
+jobs:
+  start-ecs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Setup hcloud CLI
+        run: |
+          curl -sSL "https://cn-north-4-hdn-koocli.obs.cn-north-4.myhuaweicloud.com/cli/latest/huaweicloud-cli-linux-amd64.tar.gz" -o /tmp/hcloud.tar.gz
+          tar -xzf /tmp/hcloud.tar.gz -C /tmp/
+          sudo mv /tmp/hcloud /usr/local/bin/hcloud
+      - name: Start ECS
+        env:
+          HCLOUD_AGREE_PRIVACY: "true"
+        run: |
+          echo "y" | hcloud ECS BatchStartServers \
+            --cli-region="${{ env.ECS_REGION }}" \
+            --cli-access-key="${{ secrets.OBS_AK }}" \
+            --cli-secret-key="${{ secrets.OBS_SK }}" \
+            --os-start.servers.1.id="${{ env.ECS_SERVER_ID }}"
+          sleep 120
+
+  smoke:
+    needs: start-ecs
+    # 复用组织级 V100 池；串行靠 concurrency 保证。
+    # 后续给 runner 加上 V100-pi0 标签后，再把下一行换成 [self-hosted, Linux, X64, V100-pi0]
+    runs-on: [self-hosted, Linux, X64, V100]
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pull benchmark images (Docker, required)
+        run: |
+          docker pull ${{ env.MOLMO_IMAGE }}
+          docker pull ${{ env.LIBERO_IMAGE }}
+          docker images | grep vla-evaluation-harness
+      - name: Build verify image
+        run: docker build -f docker/Dockerfile.verify -t pi0-molmo-verify:0.1 .
+      - name: Run smoke via Docker
+        run: |
+          set +e
+          mkdir -p results
+          chmod +x scripts/run_smoke.sh
+          docker run --rm --gpus all --network host \
+            -v $PWD:/work -w /work \
+            -e CUDA_VISIBLE_DEVICES=0 \
+            -e COMPILE_MODEL=false \
+            pi0-molmo-verify:0.1 bash scripts/run_smoke.sh 2>&1 | tee results/smoke.log; CODE=$?
+          ls -lh results/ || true
+          echo "smoke_exit=$CODE"
+          exit $CODE
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pi0-molmo-smoke
+          path: results/
+      - name: Upload to OBS
+        if: always()
+        run: |
+          obsutil cp results/ obs://${{ env.OBS_BUCKET }}/eval/pi0-molmo-smoke/ -f -r -flat || true
+
+  stop-ecs:
+    needs: smoke
+    runs-on: ubuntu-latest
+    if: always()
+    timeout-minutes: 10
+    steps:
+      - name: Setup hcloud CLI
+        run: |
+          curl -sSL "https://cn-north-4-hdn-koocli.obs.cn-north-4.myhuaweicloud.com/cli/latest/huaweicloud-cli-linux-amd64.tar.gz" -o /tmp/hcloud.tar.gz
+          tar -xzf /tmp/hcloud.tar.gz -C /tmp/
+          sudo mv /tmp/hcloud /usr/local/bin/hcloud
+      - name: Stop ECS
+        env:
+          HCLOUD_AGREE_PRIVACY: "true"
+        run: |
+          sleep 120
+          echo "y" | hcloud ECS BatchStopServers \
+            --cli-region="${{ env.ECS_REGION }}" \
+            --cli-access-key="${{ secrets.OBS_AK }}" \
+            --cli-secret-key="${{ secrets.OBS_SK }}" \
+            --os-stop.servers.1.id="${{ env.ECS_SERVER_ID }}"
+          sleep 60
+          exit 0
