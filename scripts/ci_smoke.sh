@@ -34,6 +34,7 @@ docker build -f docker/Dockerfile.verify -t "$VERIFY_IMAGE" .
 echo "[4/5] 启动 pi0 serve (GPU0, 后台; uv/HF 缓存持久化到 workspace)"
 mkdir -p "$WORK/.cache/uv" "$WORK/.cache/hf"
 docker rm -f pi0-serve 2>/dev/null || true
+start_serve() {
 docker run -d --name pi0-serve --gpus '"device=0"' --network host \
   -v "$WORK":/work -w /work/harness \
   -v "$WORK/.cache/uv":/root/.cache/uv \
@@ -43,15 +44,28 @@ docker run -d --name pi0-serve --gpus '"device=0"' --network host \
   -e HF_TOKEN="${HF_TOKEN:-}" \
   "$VERIFY_IMAGE" \
   vla-eval serve -c configs/model_servers/lerobot/pi05_libero.yaml
-echo "等待 serve 端口 8000 (checkpoint 下载可能很久, 最多 20min)"
-for i in $(seq 1 120); do
-  if [ "$(docker inspect -f '{{.State.Running}}' pi0-serve 2>/dev/null)" != "true" ]; then
-    echo "serve 容器退出了, 日志:"; docker logs pi0-serve 2>&1 | tail -n 30; docker rm -f pi0-serve; exit 1
-  fi
-  if (echo > /dev/tcp/127.0.0.1/8000) 2>/dev/null; then echo "serve UP"; break; fi
-  if [ "$i" = "120" ]; then echo "serve 起不来, 看日志:"; docker logs pi0-serve 2>&1 | tail -n 30; docker rm -f pi0-serve; exit 1; fi
+}
+wait_serve() {
+  # 返回 0=UP, 1=容器退出(看日志), 2=超时
+  for i in $(seq 1 120); do
+    if [ "$(docker inspect -f '{{.State.Running}}' pi0-serve 2>/dev/null)" != "true" ]; then return 1; fi
+    if (echo > /dev/tcp/127.0.0.1/8000) 2>/dev/null; then echo "serve UP"; return 0; fi
+    if [ "$i" = "120" ]; then return 2; fi
+    sleep 10
+  done
+}
+SERVE_OK=0
+for attempt in 1 2 3; do
+  echo "serve 启动尝试 $attempt/3"
+  docker rm -f pi0-serve 2>/dev/null || true
+  start_serve
+  sleep 15
+  if wait_serve; then SERVE_OK=1; break; fi
+  echo "serve 未起来 (尝试 $attempt), 尾日志:"; docker logs pi0-serve 2>&1 | tail -n 15
+  docker rm -f pi0-serve 2>/dev/null || true
   sleep 10
 done
+[ "$SERVE_OK" = "1" ] || { echo "serve 3次都起不来"; exit 1; }
 
 echo "[5/5] 跑 MolmoSpaces smoke (10ep)"
 set +e
