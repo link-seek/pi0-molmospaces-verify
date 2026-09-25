@@ -87,7 +87,7 @@ docker run -d --name pi0-serve --gpus '"device=0"' --network host \
   -e HF_ENDPOINT=https://hf-mirror.com -e HF_HUB_VERBOSITY=warning \
   -e HF_TOKEN="${HF_TOKEN:-}" \
   "$VERIFY_IMAGE" \
-  vla-eval serve -c configs/model_servers/lerobot/pi05_libero.yaml
+  vla-eval serve -c /work/configs/serve-pi05.yaml
 }
 wait_serve() {
   # 返回 0=UP, 1=容器退出(看日志), 2=超时
