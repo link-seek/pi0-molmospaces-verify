@@ -13,7 +13,19 @@ echo "[0/5] workspace 属主修复 (容器以 root 写文件, 改回 runner 1001
 docker run --rm -v "$WORK":/w python:3.12-slim chown -R 1001:1001 /w 2>/dev/null || \
   sudo chown -R "$(id -u):$(id -g)" "$WORK" 2>/dev/null || true
 
-echo "[1/5] harness 上游 ($HARNESS_REF, workspace 复用 + token + 重试)"
+echo "[1b/5] lerobot 源码 (host 侧 clone, serve 容器内 github 不通, header 改本地 path)"
+LEROBOT_URL="https://github.com/huggingface/lerobot.git"
+[ -n "${GITHUB_TOKEN:-}" ] && LEROBOT_URL="https://x-access-token:${GITHUB_TOKEN}@github.com/huggingface/lerobot.git"
+if [ ! -f lerobot-src/pyproject.toml ]; then
+  rm -rf lerobot-src
+  for i in 1 2 3 4 5; do
+    if git clone --depth 1 --branch v0.6.0 "$LEROBOT_URL" lerobot-src 2>&1 | tail -n 1; then break; fi
+    echo "lerobot clone 失败, 重试 $i..."; rm -rf lerobot-src; sleep 20
+    [ "$i" = "5" ] && exit 128
+  done
+else
+  echo "lerobot-src 已存在, 跳过 clone"
+fi
 if [ ! -f harness/pyproject.toml ]; then
   rm -rf harness
   CLONE_URL="https://github.com/allenai/vla-evaluation-harness.git"
@@ -25,6 +37,13 @@ if [ ! -f harness/pyproject.toml ]; then
   done
 else
   echo "harness 已存在, 跳过 clone"
+fi
+echo "[1c/5] harness serve 脚本 header 改本地 lerobot (容器内 github 不通)"
+if ! grep -q '/work/lerobot-src' harness/src/vla_eval/model_servers/lerobot.py; then
+  sed -i 's|lerobot = { git = "https://github.com/huggingface/lerobot.git", rev = "v0.6.0" }|lerobot = { path = "/work/lerobot-src" }|' harness/src/vla_eval/model_servers/lerobot.py
+  grep -n 'lerobot = {' harness/src/vla_eval/model_servers/lerobot.py | head -n 2
+else
+  echo "header 已 patch, 跳过"
 fi
 
 echo "[2/5] benchmark 镜像 (libero 拉取, molmo 本地构建, 上游未发布)"
