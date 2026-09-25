@@ -101,14 +101,15 @@ for attempt in 1 2 3; do
 done
 [ "$SERVE_OK" = "1" ] || { echo "serve 3次都起不来"; exit 1; }
 
-echo "[5/5] 跑 MolmoSpaces smoke (10ep)"
+echo "[5/5] 跑 MolmoSpaces smoke (10ep, 用 molmo 镜像自带 env,当 client)"
 set +e
 docker run --rm --gpus all --network host \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v "$WORK":/work -w /work \
+  -v "$WORK/.cache/hf":/root/.cache/huggingface \
   -e CUDA_VISIBLE_DEVICES=0 \
-  "$VERIFY_IMAGE" \
-  vla-eval run --config /work/configs/run-molmo-smoke10.yaml 2>&1 | tee results/smoke.log
+  "$MOLMO_IMAGE" \
+  conda run -n molmospaces vla-eval run --config /work/configs/run-molmo-smoke10.yaml 2>&1 | tee results/smoke.log
 CODE=${PIPESTATUS[0]}
 set -e
 docker rm -f pi0-serve 2>/dev/null || true
