@@ -37,6 +37,15 @@ docker images | grep -E 'molmospaces|libero' || true
 echo "[3/5] 构建 verify 镜像 (vla-eval + lerobot + torch, host 缓存)"
 docker build -f docker/Dockerfile.verify -t "$VERIFY_IMAGE" .
 
+echo "[4/5] 预热 checkpoint 缓存 (mirror 可靠, 带重试)"
+for i in 1 2 3; do
+  if docker run --rm --network host \
+    -v "$WORK/.cache/hf":/root/.cache/huggingface \
+    -e HF_ENDPOINT=https://hf-mirror.com \
+    "$VERIFY_IMAGE" python -c "from huggingface_hub import snapshot_download; snapshot_download('lerobot/pi05_libero_finetuned', max_workers=4)" 2>&1 | tail -n 2; then break; fi
+  echo "checkpoint 预热失败, 重试 $i..."; sleep 15
+  [ "$i" = "3" ] && exit 1
+done
 echo "[4/5] 启动 pi0 serve (GPU0, 后台; uv/HF 缓存持久化到 workspace)"
 mkdir -p "$WORK/.cache/uv" "$WORK/.cache/hf"
 docker rm -f pi0-serve 2>/dev/null || true
@@ -46,7 +55,7 @@ docker run -d --name pi0-serve --gpus '"device=0"' --network host \
   -v "$WORK/.cache/uv":/root/.cache/uv \
   -v "$WORK/.cache/hf":/root/.cache/huggingface \
   -e CUDA_VISIBLE_DEVICES=0 -e COMPILE_MODEL=false \
-  -e HF_HUB_VERBOSITY=warning \
+  -e HF_ENDPOINT=https://hf-mirror.com -e HF_HUB_VERBOSITY=warning \
   -e HF_TOKEN="${HF_TOKEN:-}" \
   "$VERIFY_IMAGE" \
   vla-eval serve -c configs/model_servers/lerobot/pi05_libero.yaml
