@@ -45,6 +45,16 @@ if ! grep -q '/work/lerobot-src' harness/src/vla_eval/model_servers/lerobot.py; 
 else
   echo "header 已 patch, 跳过"
 fi
+echo "[1d/5] torch 降到 2.6.0cu126 (V100 sm_70; cu128 无 Volta 内核)"
+if ! grep -q 'torch==2.6.0' harness/src/vla_eval/model_servers/lerobot.py; then
+  sed -i 's|"torch>=2.7,<2.12"|"torch==2.6.0"|' harness/src/vla_eval/model_servers/lerobot.py
+fi
+if ! grep -q 'torch==2.6.0' lerobot-src/pyproject.toml; then
+  sed -i 's|"torch>=2.7,<2.12.0"|"torch==2.6.0"|; s|"torchvision>=0.22.0,<0.27.0"|"torchvision==0.21.0"|; s|download.pytorch.org/whl/cu128|download.pytorch.org/whl/cu126|' lerobot-src/pyproject.toml
+  grep -nE '"torch==|"torchvision==|whl/cu12' lerobot-src/pyproject.toml | head -n 5
+else
+  echo "lerobot torch pin 已 patch, 跳过"
+fi
 
 echo "[2/5] benchmark 镜像 (libero 拉取, molmo 本地构建, 上游未发布)"
 docker pull "$LIBERO_IMAGE"
@@ -109,7 +119,7 @@ docker run --rm --gpus all --network host \
   -v "$WORK/.cache/hf":/root/.cache/huggingface \
   -e CUDA_VISIBLE_DEVICES=0 \
   "$MOLMO_IMAGE" \
-  run --config /work/configs/run-molmo-smoke10.yaml 2>&1 | tee results/smoke.log
+  run --config /work/configs/run-molmo-smoke10.yaml --shard-id 0 --num-shards 20 2>&1 | tee results/smoke.log
 CODE=${PIPESTATUS[0]}
 set -e
 docker rm -f pi0-serve 2>/dev/null || true
