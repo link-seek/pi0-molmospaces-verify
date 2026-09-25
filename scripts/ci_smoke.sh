@@ -36,7 +36,8 @@ docker rm -f pi0-serve 2>/dev/null || true
 docker run -d --name pi0-serve --gpus '"device=0"' --network host \
   -v "$WORK":/work -w /work/harness \
   -e CUDA_VISIBLE_DEVICES=0 -e COMPILE_MODEL=false \
-  -e HF_ENDPOINT=https://hf-mirror.com -e HF_HUB_VERBOSITY=warning \
+  -e HF_HUB_VERBOSITY=warning \
+  -e HF_TOKEN="${HF_TOKEN:-}" \
   "$VERIFY_IMAGE" \
   vla-eval serve -c configs/model_servers/lerobot/pi05_libero.yaml
 echo "等待 serve 端口 8000 (checkpoint 下载可能很久, 最多 20min)"
