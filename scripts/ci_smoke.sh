@@ -109,7 +109,7 @@ docker run --rm --gpus all --network host \
   -v "$WORK/.cache/hf":/root/.cache/huggingface \
   -e CUDA_VISIBLE_DEVICES=0 \
   "$MOLMO_IMAGE" \
-  conda run -n molmospaces vla-eval run --config /work/configs/run-molmo-smoke10.yaml 2>&1 | tee results/smoke.log
+  run --config /work/configs/run-molmo-smoke10.yaml 2>&1 | tee results/smoke.log
 CODE=${PIPESTATUS[0]}
 set -e
 docker rm -f pi0-serve 2>/dev/null || true
