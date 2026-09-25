@@ -1,6 +1,6 @@
 #!/bin/bash
-# CI smoke: host 编排 serve(verify 容器, GPU0) + run(verify 容器, dockersock)。
-# 上游 serve 配置直接用 harness 原生文件，不手写 extends。
+# CI smoke: host 编排 serve(verify 容器, GPU0) + run(molmo 镜像当 client)。
+# serve 用自研配置 configs/serve-pi05.yaml (Franka 相机映射), 不用上游 LIBERO 版。
 set -e
 cd "$(dirname "$0")/.."
 WORK="$PWD"
@@ -122,6 +122,8 @@ docker run --rm --gpus all --network host \
   run --config /work/configs/run-molmo-smoke10.yaml --shard-id 0 --num-shards 20 2>&1 | tee results/smoke.log
 CODE=${PIPESTATUS[0]}
 set -e
+echo "[5b/5] 收 serve 日志 (定位 observation_failed 必备)"
+docker logs pi0-serve > results/serve.log 2>&1 || true
 docker rm -f pi0-serve 2>/dev/null || true
 ls -lh results/ || true
 echo "smoke_exit=$CODE"
