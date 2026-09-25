@@ -31,10 +31,13 @@ docker images | grep -E 'molmospaces|libero' || true
 echo "[3/5] 构建 verify 镜像 (vla-eval + lerobot + torch, host 缓存)"
 docker build -f docker/Dockerfile.verify -t "$VERIFY_IMAGE" .
 
-echo "[4/5] 启动 pi0 serve (GPU0, 后台)"
+echo "[4/5] 启动 pi0 serve (GPU0, 后台; uv/HF 缓存持久化到 workspace)"
+mkdir -p "$WORK/.cache/uv" "$WORK/.cache/hf"
 docker rm -f pi0-serve 2>/dev/null || true
 docker run -d --name pi0-serve --gpus '"device=0"' --network host \
   -v "$WORK":/work -w /work/harness \
+  -v "$WORK/.cache/uv":/root/.cache/uv \
+  -v "$WORK/.cache/hf":/root/.cache/huggingface \
   -e CUDA_VISIBLE_DEVICES=0 -e COMPILE_MODEL=false \
   -e HF_HUB_VERBOSITY=warning \
   -e HF_TOKEN="${HF_TOKEN:-}" \
