@@ -7,6 +7,7 @@ args:
   checkpoint: lerobot/pi05_libero_finetuned
   device: cuda
   port: 8000
+  compile_model: false
   state_key: observation.state
   chunk_size: 10
   image_keys:
