@@ -13,13 +13,19 @@ echo "[0/5] workspace 属主修复 (容器以 root 写文件, 改回 runner 1001
 docker run --rm -v "$WORK":/w python:3.12-slim chown -R 1001:1001 /w 2>/dev/null || \
   sudo chown -R "$(id -u):$(id -g)" "$WORK" 2>/dev/null || true
 
-echo "[1/5] harness 上游 clone ($HARNESS_REF, 带重试)"
-rm -rf harness
-for i in 1 2 3; do
-  if git clone --depth 1 --branch "$HARNESS_REF" https://github.com/allenai/vla-evaluation-harness.git harness; then break; fi
-  echo "clone 失败, 重试 $i..."; rm -rf harness; sleep 15
-  [ "$i" = "3" ] && exit 128
-done
+echo "[1/5] harness 上游 ($HARNESS_REF, workspace 复用 + token + 重试)"
+if [ ! -f harness/pyproject.toml ]; then
+  rm -rf harness
+  CLONE_URL="https://github.com/allenai/vla-evaluation-harness.git"
+  [ -n "${GITHUB_TOKEN:-}" ] && CLONE_URL="https://x-access-token:${GITHUB_TOKEN}@github.com/allenai/vla-evaluation-harness.git"
+  for i in 1 2 3 4 5; do
+    if git clone --depth 1 --branch "$HARNESS_REF" "$CLONE_URL" harness 2>&1 | tail -n 1; then break; fi
+    echo "clone 失败, 重试 $i..."; rm -rf harness; sleep 20
+    [ "$i" = "5" ] && exit 128
+  done
+else
+  echo "harness 已存在, 跳过 clone"
+fi
 
 echo "[2/5] benchmark 镜像 (libero 拉取, molmo 本地构建, 上游未发布)"
 docker pull "$LIBERO_IMAGE"

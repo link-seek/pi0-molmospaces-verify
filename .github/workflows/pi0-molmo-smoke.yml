@@ -61,6 +61,7 @@ jobs:
       - name: Run smoke via Docker (host orchestration)
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p results
           chmod +x scripts/ci_smoke.sh
